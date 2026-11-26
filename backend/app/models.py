@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from sqlalchemy import String, ForeignKey, UniqueConstraint, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column
-from .db import Base
+from .schema import Base
 
 
 def now():

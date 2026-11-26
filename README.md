@@ -54,6 +54,47 @@ Abre [ASISTIX local](http://localhost:5173) e ingresa con `admin@asistix.demo`, 
 
 Ejecuta `python -m pytest` desde el backend con el entorno virtual configurado. Desde el frontend, usa `npm test` y `npm run build`.
 
+## PostgreSQL nativo y Alembic
+
+Se verificó PostgreSQL 17.12 con Python 3.13 x64 y Psycopg. Crea una base vacía y asigna su propiedad a un rol de aplicación sin privilegios de superusuario. Configura `DATABASE_URL` en la terminal o mediante el gestor de secretos con el formato `postgresql+psycopg://USUARIO:CLAVE_CODIFICADA@127.0.0.1:5432/BASE` y define un `JWT_SECRET` aleatorio de al menos 32 caracteres. Usa codificación URL para caracteres reservados de la clave.
+
+Desde la raíz, con el entorno virtual activado:
+
+```powershell
+python -m pip install -r backend/requirements.lock.txt -r backend/requirements-migrations.lock.txt
+python -m alembic -c backend/alembic.ini upgrade head
+if ($LASTEXITCODE -ne 0) { throw 'Falló la migración' }
+python -m alembic -c backend/alembic.ini current
+python -m alembic -c backend/alembic.ini check
+# Inicia la API solo si las migraciones terminaron correctamente.
+Set-Location backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+En una base dedicada a demostración, y desde `backend` con la misma conexión, activa `DEMO_MODE=true` y ejecuta explícitamente `python -m app.seed`. La opción `--extended` incorpora casos adicionales ficticios. El arranque ordinario no ejecuta la semilla.
+
+### SQLite
+
+El inicio rápido de Windows conserva SQLite con claves foráneas y creación de tablas al arrancar. Para elegir un archivo concreto, configura `DATABASE_URL=sqlite:///./asistix.db` con el directorio de trabajo en `backend`. Alembic puede ensayarse sobre un archivo SQLite nuevo y vacío. La revisión inicial no debe aplicarse directamente a una base preexistente con tablas. Consulta la [guía de migraciones](docs/MIGRACIONES_POSTGRESQL.md).
+
+## Docker Compose con PostgreSQL
+
+```powershell
+Copy-Item .env.example .env # Solo si .env todavía no existe.
+# Edita .env: cambia POSTGRES_PASSWORD y JWT_SECRET (mínimo 32 caracteres).
+docker compose up --build -d
+# Solo para una base de demostración aislada:
+docker compose exec -e DEMO_MODE=true backend python -m app.seed
+```
+
+Compose espera a que PostgreSQL esté disponible, ejecuta `alembic upgrade head` en el servicio de una sola ejecución `migrate` y habilita el backend cuando la migración termina con código cero. Alembic serializa las migraciones concurrentes mediante un bloqueo transaccional de PostgreSQL. Usa un volumen nuevo para una primera instalación. Si un volumen anterior ya contiene tablas de ASISTIX creadas sin Alembic, conserva sus datos y planifica su adopción antes de aplicar la revisión inicial.
+
+Abre http://localhost:8080. PostgreSQL solo está disponible en la red interna de Compose. `docker compose down` conserva el volumen `postgres_data`. El modo demo está desactivado por defecto. Para mostrar las cuentas de prueba en la interfaz de una instalación de demostración, configura también `DEMO_MODE=true` en su `.env`.
+
+### Estado de validación
+
+La [regresión de SQLite y PostgreSQL](docs/VALIDACION_CONCURRENCIA_POSTGRESQL.md) y la [validación funcional en PC e iPhone](docs/VALIDACION_MANUAL_POSTGRESQL.md) corresponden al laboratorio nativo. En 12.8.7.1 se comprobó el flujo nativo equivalente de migración y arranque sobre una base desechable. La configuración de Compose se revisó estáticamente y queda pendiente construir y ejecutar los contenedores.
+
 ## Análisis de ausentismo
 
 El panel **Alertas** muestra rachas activas, compara la asistencia de los últimos siete días con los siete anteriores y presenta alertas preventivas, recomendaciones y rankings por porcentaje de ausencias. Usa reglas estadísticas explicables. El módulo funciona sin un modelo de aprendizaje automático entrenado.

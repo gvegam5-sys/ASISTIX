@@ -6,7 +6,7 @@ import pytest
 from pypdf import PdfReader
 
 from test_attendance_filters import courses_with_attendance
-from test_flow import client, login
+from test_flow import login
 from app import main
 from app.attendance_pdf import render_attendance_pdf
 

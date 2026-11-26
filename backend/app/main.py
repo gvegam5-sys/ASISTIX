@@ -25,7 +25,9 @@ from .reporting_time import REPORTING_ZONE, reporting_date, reporting_day_bounds
 
 @asynccontextmanager
 async def lifespan(app):
-    Base.metadata.create_all(engine)
+    # PostgreSQL schemas are managed by Alembic.
+    if engine.dialect.name == 'sqlite':
+        Base.metadata.create_all(engine)
     from .db import SessionLocal
     with SessionLocal() as db:
         for name in ['admin', 'teacher', 'student']:

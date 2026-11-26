@@ -3,7 +3,7 @@ from datetime import date, datetime
 import pytest
 from sqlalchemy import select
 
-from test_flow import client, login
+from test_flow import login
 from app import main
 from app.db import SessionLocal
 from app.models import Attendance, ClassSession, User

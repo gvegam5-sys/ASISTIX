@@ -5,7 +5,7 @@ from datetime import datetime
 import pytest
 from sqlalchemy import select
 
-from test_flow import client, login
+from test_flow import login
 from app.db import SessionLocal
 from app.models import Attendance, ClassSession, Course, Enrollment, Teacher, User
 

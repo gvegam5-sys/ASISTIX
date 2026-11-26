@@ -1,31 +1,10 @@
-import os
-import tempfile
 from datetime import timedelta
 
-directory = tempfile.TemporaryDirectory()
-os.environ['DATABASE_URL'] = 'sqlite:///' + directory.name.replace('\\', '/') + '/test.db'
-os.environ['JWT_SECRET'] = 'test-secret-only-for-automated-tests-000000'
-os.environ['DEMO_MODE'] = 'true'
-
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy import select, func
-from app.main import app
-from app.seed import seed
-from app.db import SessionLocal, Base, engine
+from app.db import SessionLocal
 from app.models import User, Attendance, QRToken, ClassSession, Enrollment, now
 from app.security import sign
-
-
-@pytest.fixture()
-def client():
-    from app.main import attempts
-    attempts.clear()
-    Base.metadata.drop_all(engine)
-    with TestClient(app) as client:
-        seed()
-        yield client
-    engine.dispose()  # Libera el archivo SQLite antes de limpiar temporales en Windows.
 
 
 def login(client, name):

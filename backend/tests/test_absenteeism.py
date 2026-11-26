@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import pytest
 from sqlalchemy import select
 
-from test_flow import client, login
+from test_flow import login
 from app.analytics import calculate_risk, risk_policy
 from app.db import SessionLocal, Settings
 from app.models import Attendance, ClassSession, Course, Enrollment, User

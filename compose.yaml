@@ -8,14 +8,23 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U asistix -d asistix"]
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "asistix", "-d", "asistix"]
       interval: 5s
       timeout: 5s
       retries: 15
+  migrate:
+    build: ./backend
+    command: ["python", "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"]
+    restart: "no"
+    environment:
+      DATABASE_URL: &database_url postgresql+psycopg://asistix:${POSTGRES_PASSWORD}@db:5432/asistix
+    depends_on:
+      db:
+        condition: service_healthy
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql+psycopg://asistix:${POSTGRES_PASSWORD}@db:5432/asistix
+      DATABASE_URL: *database_url
       JWT_SECRET: ${JWT_SECRET:?Configura JWT_SECRET en .env}
       DEMO_MODE: ${DEMO_MODE:-false}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://localhost:5173}
@@ -27,8 +36,8 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 5s
