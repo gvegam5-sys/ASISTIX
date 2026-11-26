@@ -45,6 +45,7 @@ export function BiometricAttendance({ Scanner, refresh, allowCamera = false }: {
     return () => { active = false }
   }, [])
   const [screen, setScreen] = useState<'scan' | 'verify' | 'done'>('scan')
+  const [verificationSkipped, setVerificationSkipped] = useState(false)
   const [input, setInput] = useState('')
   const [challenge, setChallenge] = useState<Challenge>()
   const [fixture, setFixture] = useState('a')
@@ -91,6 +92,7 @@ export function BiometricAttendance({ Scanner, refresh, allowCamera = false }: {
     let qr = value.trim()
     try { qr = new URLSearchParams(new URL(qr).hash.slice(1)).get('qr') || qr } catch { /* direct QR token */ }
     if (!qr) return
+    setVerificationSkipped(false)
     stop()
     const operation = ++revision.current
     scanStart.current = performance.now()
@@ -99,7 +101,7 @@ export function BiometricAttendance({ Scanner, refresh, allowCamera = false }: {
     try {
       try {
         const result = await api<{ message: string }>('/attendance', 'POST', { token: qr })
-        if (operation === revision.current) { setScreen('done'); setMessage(result.message); void refresh() }
+        if (operation === revision.current) { setVerificationSkipped(true); setScreen('done'); setMessage(result.message); void refresh() }
         return
       } catch (error) {
         if (!(error instanceof ApiError) || error.code !== 'BIOMETRIC_REQUIRED') throw error
@@ -180,6 +182,7 @@ export function BiometricAttendance({ Scanner, refresh, allowCamera = false }: {
 
   function reset() {
     revision.current += 1
+    setVerificationSkipped(false)
     if (challenge?.challenge) void api(`/biometric/challenges/${challenge.challenge}`, 'DELETE').catch(() => {})
     stop(); setInput(''); setScreen('scan'); setChallenge(undefined); setMessage(''); setCameraError(''); setConsent(false); setBusy(false)
   }
@@ -234,10 +237,11 @@ export function BiometricAttendance({ Scanner, refresh, allowCamera = false }: {
     <ol className="bio-steps">
       {([['scan', 'Escanear QR'], ['verify', 'Verificar identidad'], ['done', 'Confirmar asistencia']] as const)
         .map(([key, label], index) => {
-          const complete = ['scan', 'verify', 'done'].indexOf(screen) > index || screen === 'done'
+          const skipped = key === 'verify' && verificationSkipped
+          const complete = !skipped && (['scan', 'verify', 'done'].indexOf(screen) > index || screen === 'done')
           const Icon = complete ? Check : screen === key ? [ScanLine, ShieldCheck, Check][index] : Circle
           return <li key={key} data-complete={complete} aria-current={screen === key ? 'step' : undefined}>
-            <Icon aria-hidden="true" size={18}/><span className="sr-only">{complete ? 'Completada: ' : screen === key ? 'Actual: ' : 'Pendiente: '}</span>{label}
+            <Icon aria-hidden="true" size={18}/>{skipped ? 'Verificación facial no requerida' : <><span className="sr-only">{complete ? 'Completada: ' : screen === key ? 'Actual: ' : 'Pendiente: '}</span>{label}</>}
           </li>
         })}
     </ol>
@@ -302,7 +306,9 @@ const reasonLabels: Record<string, string> = {
   revoked: 'Consentimiento retirado', mismatch: 'La muestra facial no coincide',
 }
 
-export function BiometricTeacher({ sessionId, closed = false }: { sessionId: number; closed?: boolean }) {
+export function BiometricTeacher({ sessionId, closed = false, onPolicyChanged }: {
+  sessionId: number; closed?: boolean; onPolicyChanged?: () => void
+}) {
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const lock = useRef(false)
@@ -325,11 +331,11 @@ export function BiometricTeacher({ sessionId, closed = false }: { sessionId: num
   return <details className="bio-review"><summary>Laboratorio biométrico de la sesión</summary>
     <p className={`bio-status ${required ? 'success' : 'notice'}`}>{required === undefined ? 'Consultando estado…' : required ? 'Verificación biométrica activada' : 'Verificación biométrica desactivada'}</p>
     {!closed && required !== true && <button className="btn outline" disabled={busy || required === undefined} onClick={() => void action(async () => {
-      await api(`/sessions/${sessionId}/biometric`, 'PUT'); setRequired(true); setMessage('Verificación biométrica requerida en esta sesión.')
+      await api(`/sessions/${sessionId}/biometric`, 'PUT'); setRequired(true); onPolicyChanged?.(); setMessage('Verificación biométrica requerida en esta sesión.')
     })}>Activar para esta sesión</button>}
     {!closed && required === true && <button className="btn outline" disabled={busy} onClick={() => void action(async () => {
       await api(`/sessions/${sessionId}/biometric`, 'DELETE')
-      setRequired(false); setMessage('Verificación facial desactivada. La sesión vuelve al QR normal.')
+      setRequired(false); onPolicyChanged?.(); setMessage('Verificación facial desactivada. La sesión vuelve al QR normal.')
     })}>Desactivar para esta sesión</button>}
     <button className="btn outline" disabled={busy} onClick={() => void action(load)}>Cargar solicitudes</button>
     {rows.map(row => <article key={row.id} className="bio-request"><strong>{row.student_name}</strong>

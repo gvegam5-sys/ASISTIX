@@ -6,6 +6,19 @@ import { BiometricAttendance, BiometricTeacher } from './biometric-attendance'
 vi.mock('./api', () => ({ api: vi.fn(), ApiError: Error }))
 afterEach(() => { cleanup(); vi.resetAllMocks() })
 
+it('marks facial verification as unnecessary after a conventional QR attendance', async () => {
+  vi.mocked(api).mockImplementation(path => path === '/attendance'
+    ? Promise.resolve({ message: 'Asistencia registrada' })
+    : Promise.resolve({ enrolled: false }))
+  render(<BiometricAttendance Scanner={() => null} refresh={async () => {}}/>)
+  fireEvent.change(screen.getByLabelText('Token QR de demostración'), { target: { value: 'qr-demo' } })
+  fireEvent.click(screen.getByText('Validar QR'))
+  const indicator = await screen.findByText('Verificación facial no requerida')
+  expect(indicator.getAttribute('data-complete')).toBe('false')
+  expect(api).toHaveBeenCalledWith('/attendance', 'POST', { token: 'qr-demo' })
+  expect(vi.mocked(api).mock.calls.some(([path]) => path.startsWith('/biometric/challenges'))).toBe(false)
+})
+
 it('asks before revocation and reports success only after the server confirms', async () => {
   let complete!: (value: { enrolled: boolean }) => void
   vi.mocked(api).mockImplementation((_, method) => method === 'DELETE'

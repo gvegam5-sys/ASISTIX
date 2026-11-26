@@ -200,12 +200,15 @@ def sessions(u: User = Depends(current_user), db: Session = Depends(get_db)):
 
 @app.post('/courses/{course_id}/sessions', status_code=201)
 def start_session(course_id: int, u: User = Depends(roles('teacher', 'admin')), db: Session = Depends(get_db)):
+    biometric.write_lock(db)
     course_access(db, u, course_id)
     # Serializa aperturas de una misma materia en PostgreSQL.
     db.scalar(select(Course).where(Course.id == course_id).with_for_update())
     if db.scalar(select(ClassSession).where(ClassSession.course_id == course_id, ClassSession.closed_at.is_(None))): raise HTTPException(409, 'Esta materia ya tiene una sesión abierta')
     s = ClassSession(course_id=course_id)
     db.add(s)
+    db.flush()
+    biometric.protect_new_session(db, s.id, u.id)
     audit(db, u, f'start_session:{course_id}')
     commit(db)
     return {'id': s.id}
@@ -227,6 +230,7 @@ def close_session(session_id: int, u: User = Depends(roles('teacher', 'admin')),
 
 @app.get('/sessions/{session_id}/qr')
 def qr(session_id: int, u: User = Depends(roles('teacher', 'admin')), db: Session = Depends(get_db)):
+    biometric.write_lock(db)
     s = db.scalar(select(ClassSession).where(ClassSession.id == session_id).with_for_update())
     if not s: raise HTTPException(404, 'Sesión no encontrada')
     course_access(db, u, s.course_id)
@@ -238,7 +242,8 @@ def qr(session_id: int, u: User = Depends(roles('teacher', 'admin')), db: Sessio
         commit(db)
     expiration = int(t.expires_at.replace(tzinfo=__import__('datetime').timezone.utc).timestamp())
     token = sign({'kind': 'qr', 'jti': t.id, 'sid': s.id}, max(1, expiration-int(time.time())))
-    return {'token': token, 'expires_at': t.expires_at.isoformat()+'Z', 'server_time': now().isoformat()+'Z'}
+    return {'token': token, 'session_id': s.id, 'biometric_required': biometric.required(db, s.id),
+            'expires_at': t.expires_at.isoformat()+'Z', 'server_time': now().isoformat()+'Z'}
 
 
 class Scan(BaseModel):
@@ -309,7 +314,7 @@ def scan(data: Scan, u: User = Depends(attendance_student), db: Session = Depend
     student_id = u.id
     biometric.write_lock(db)
     _, qr, session = validate_qr(data.token, student_id, db)
-    if settings.biometric_lab and biometric.required(db, session.id):
+    if biometric.required(db, session.id):
         raise AttendanceError('BIOMETRIC_REQUIRED', 409)
     return save_attendance(db, student_id, session.id, qr.id)
 

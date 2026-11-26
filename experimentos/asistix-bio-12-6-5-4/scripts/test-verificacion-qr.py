@@ -152,15 +152,32 @@ def run(folder):
     review=call('POST','/biometric/reviews','estudiante3',{'session_id':sid,'reason':'no_consent'},202)[1]
     call('POST',f"/biometric/reviews/{review['id']}/approve",'estudiante3',status=403)
     call('POST',f"/biometric/reviews/{review['id']}/approve",teacher)
+    previous_sid, previous_path = sid, path
+    call('POST',session+'/close',teacher)
+    bio.private_pilot = True
+    sid = call('POST','/courses/1/sessions',teacher,status=201)[1]['id']
+    session = f'/sessions/{sid}'
+    current_qr = call('GET',session+'/qr',teacher)[1]
+    assert current_qr['session_id']==sid and current_qr['biometric_required'] is True
+    call('POST','/attendance',student,{'token':current_qr['token']},409,'BIOMETRIC_REQUIRED')
+    assert send_jpeg(previous_path,good,409)['code']=='CHALLENGE_INVALID'
+    fresh = issue()['challenge']
+    assert not previous_path.endswith(f'/{fresh}/confirm')
+    call('DELETE',f'/biometric/challenges/{fresh}',student)
+    assert send_jpeg(f'/biometric/physical/challenges/{fresh}/confirm',good,409)['code']=='CHALLENGE_INVALID'
+    with sessions() as db:
+        assert db.scalar(select(func.count()).select_from(Attendance).where(Attendance.session_id==sid))==0
+    bio.private_pilot = False
     call('DELETE','/biometric/enrollment',student)
     with sessions() as db:
-        assert db.scalar(select(func.count()).select_from(Attendance).where(Attendance.session_id==sid))==3
+        assert db.scalar(select(func.count()).select_from(Attendance).where(Attendance.session_id==previous_sid))==3
         assert not bio.current_template(db, ids[student])
     app.state.isolated_physical_capture = None
     print(json.dumps({'qr_only_blocked':True,'not_enrolled':True,'other_identity_blocked':True,'mismatch':True,
                       'revocation':True,'cancel':True,'concurrent_statuses':results,'attendances':1,
                       'jpeg_gate':True,'explicit_consent':True,'teacher_toggle':True,'qr_normal':True,
-                      'jpeg_1to1':True,'jpeg_replay_rejected':True,'enrollment_revocation_race':True,'teacher_review':True}))
+                      'jpeg_1to1':True,'jpeg_replay_rejected':True,'enrollment_revocation_race':True,'teacher_review':True,
+                      'consecutive_sessions_no_bypass':True}))
     engine.dispose()
 
 

@@ -93,6 +93,18 @@ def required(db, session_id):
     return db.scalar(select(policy.c.session_id).where(policy.c.session_id == session_id)) is not None
 
 
+def protect_new_session(db, session_id, actor_id):
+    if private_pilot:
+        db.execute(insert(policy).values(session_id=session_id))
+        db.add(Audit(actor_id=actor_id, action=f'biometric_required:{session_id}'))
+
+
+def retire_qr(db, session_id):
+    stamp = now()
+    db.execute(update(QRToken).where(QRToken.session_id==session_id,
+                                    QRToken.expires_at>stamp).values(expires_at=stamp))
+
+
 def current_template(db, student_id):
     row = db.execute(select(templates).where(templates.c.student_id == student_id)).mappings().first()
     if row:
@@ -277,6 +289,8 @@ def install(router, validate_qr, check_enrollment, save_attendance, course_acces
         course_access(db, u, session.course_id)
         if not required(db, session.id):
             db.execute(insert(policy).values(session_id=session.id))
+            retire_qr(db, session.id)
+            db.add(Audit(actor_id=u.id, action=f'biometric_required:{session.id}'))
         db.commit()
         return {'required': True}
 
@@ -288,9 +302,12 @@ def install(router, validate_qr, check_enrollment, save_attendance, course_acces
         if session is None or session.closed_at:
             raise HTTPException(404, 'Sesión abierta no disponible.')
         course_access(db, u, session.course_id)
-        db.execute(delete(policy).where(policy.c.session_id==session_id))
-        db.execute(update(challenges).where(challenges.c.session_id==session_id,
-                                           challenges.c.closed_at.is_(None)).values(closed_at=now()))
+        if required(db, session_id):
+            db.execute(delete(policy).where(policy.c.session_id==session_id))
+            retire_qr(db, session_id)
+            db.execute(update(challenges).where(challenges.c.session_id==session_id,
+                                               challenges.c.closed_at.is_(None)).values(closed_at=now()))
+            db.add(Audit(actor_id=u.id, action=f'biometric_disabled:{session_id}'))
         db.commit()
         return {'required': False}
 
