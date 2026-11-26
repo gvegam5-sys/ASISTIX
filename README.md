@@ -56,10 +56,14 @@ Ejecuta `python -m pytest` desde el backend con el entorno virtual configurado. 
 
 ## Laboratorio biométrico
 
+La [demostración universitaria final 12.6.5.6](experimentos/asistix-bio-12-6-5-6/DEMO_UNIVERSITARIA.md) consolida el QR, el consentimiento, el enrolamiento, la verificación 1:1, la revisión docente y la revocación. Usa retratos sintéticos, prueba de vida simulada y una SQLite ficticia aparte, con captura física desactivada.
+
 El código experimental está en [12.6.5.4](experimentos/asistix-bio-12-6-5-4) y reutiliza el [piloto 12.6.5.3](experimentos/asistix-bio-12-6-5-3). El flujo separa el transporte TLS del procesamiento facial, compara con la plantilla cifrada de la cuenta autenticada y vuelve a comprobar el desafío QR antes de registrar una sola asistencia.
 
 La verificación 1:1 y su integración con QR se validaron físicamente en Safari de iPhone con un participante adulto voluntario. Se comprobó el consentimiento, la asistencia única, el bloqueo de duplicados, la verificación nueva en sesiones consecutivas, la cancelación, la revocación y el QR convencional. Las pruebas automatizadas con JPEG sintéticos cubren también la no coincidencia y la concurrencia. En el QR convencional se muestra «Verificación facial no requerida».
 
-El piloto físico está cerrado y la captura real permanece desactivada por defecto. Una nueva prueba requiere autorización, un entorno Windows aislado, HTTPS y firewall propios del laboratorio y cuentas voluntarias temporales. La validación con un participante no permite estimar la precisión biométrica general. La prueba de vida y la validación con PostgreSQL siguen pendientes.
+En el piloto físico 12.6.5.5 se completó la prueba de vida en Safari de iPhone con un adulto voluntario y se rechazó una fotografía mostrada en pantalla. El intento con un vídeo pregrabado terminó por captura insuficiente. Sigue pendiente evaluar la fotografía impresa, obtener evidencia concluyente de detección de vídeo pregrabado y estimar la precisión biométrica general.
+
+El piloto físico está cerrado. Una nueva prueba requiere autorización, un entorno Windows aislado, HTTPS y firewall propios del laboratorio y cuentas voluntarias temporales. La validación con PostgreSQL sigue pendiente.
 
 El repositorio contiene el código, los manifiestos y las licencias. Los modelos se obtienen de las URLs oficiales del manifiesto verificando SHA-256. Los retratos sintéticos, binarios instalados, claves, certificados y bases de datos se preparan fuera de Git. Consulta las [instrucciones del laboratorio](experimentos/README.md).
