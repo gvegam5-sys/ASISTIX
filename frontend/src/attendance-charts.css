@@ -1,0 +1,137 @@
+.charts-grid.attendance-charts {
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+}
+
+.attendance-chart-legend,
+.attendance-course-bars {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.attendance-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-bottom: 8px;
+  color: #4a607d;
+  font-size: 11px;
+}
+
+.attendance-chart-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.attendance-chart-line {
+  flex: 0 0 22px;
+  border-top: 3px solid #2870ef;
+}
+
+.attendance-chart-line-expected {
+  border-top: 2px dashed #869ab5;
+}
+
+.attendance-course-bars {
+  display: grid;
+  gap: 12px;
+}
+
+.attendance-course-details summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 6px 12px;
+  align-items: baseline;
+  padding: 6px 0;
+  list-style: none;
+  cursor: pointer;
+}
+
+.attendance-course-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.attendance-course-details summary:focus-visible {
+  outline: 2px solid #2870ef;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.attendance-course-name {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.attendance-course-rate {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #12274b;
+}
+
+.attendance-course-details[open] .attendance-course-rate svg {
+  transform: rotate(180deg);
+}
+
+.attendance-course-track {
+  grid-column: 1 / -1;
+  height: 9px;
+  border-radius: 10px;
+  background: #edf1f7;
+}
+
+.attendance-course-track-empty {
+  background: transparent;
+  border: 1px dashed #869ab5;
+}
+
+.attendance-course-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #28b9a6;
+}
+
+.attendance-chart-tooltip,
+.attendance-course-counts {
+  border: 1px solid #e5ebf3;
+  border-radius: 8px;
+  padding: 9px 11px;
+  color: #12274b;
+  background: #fff;
+  font-size: 11px;
+}
+
+.attendance-chart-tooltip {
+  max-width: 185px;
+  box-shadow: 0 4px 12px #12274b1a;
+}
+
+.attendance-chart-tooltip p {
+  margin: 5px 0 0;
+}
+
+.attendance-counts {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 0;
+}
+
+.attendance-counts div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.attendance-counts dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+  .charts-grid.attendance-charts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

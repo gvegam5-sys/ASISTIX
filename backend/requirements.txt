@@ -1,0 +1,16 @@
+fastapi>=0.115,<1
+uvicorn[standard]>=0.34,<1
+SQLAlchemy>=2.0,<2.1
+psycopg[binary]>=3.2,<4
+PyJWT>=2.10,<3
+pwdlib[argon2]>=0.2,<1
+pydantic-settings>=2.7,<3
+email-validator>=2.2,<3
+scikit-learn>=1.6,<2
+pytest>=8,<10
+httpx>=0.28,<1
+tzdata>=2026.1
+reportlab==4.4.10
+pypdf==6.9.1
+XlsxWriter==3.3.4
+openpyxl==3.1.5

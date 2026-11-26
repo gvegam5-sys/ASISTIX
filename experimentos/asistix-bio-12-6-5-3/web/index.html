@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Registro facial · ASISTIX</title>
+  <link rel="stylesheet" href="/ui.css">
+  <script src="/ui.js" defer></script>
+</head>
+<body>
+  <header><b>ASISTIX</b><span>Laboratorio de acceso restringido</span></header>
+  <main>
+    <h1>Registro facial</h1>
+    <p>El laboratorio está reservado a participantes adultos voluntarios con una cuenta autorizada.</p>
+    <form id="login" method="post" action="/login">
+      <label>Cuenta de laboratorio<input name="login" autocomplete="username" required maxlength="100"></label>
+      <label>Clave<input name="password" type="password" autocomplete="current-password" required maxlength="200"></label>
+      <button>Iniciar sesión</button>
+    </form>
+    <section id="enrollment" hidden>
+      <h2>Consentimiento informado</h2>
+      <p>Esta captura permite crear una plantilla para evaluar el registro facial. El procesamiento se realiza dentro del laboratorio de ASISTIX. La fotografía no se conserva. La plantilla se cifra y se asocia a tu cuenta.</p>
+      <p>Puedes retirar el consentimiento y eliminar la plantilla en cualquier momento. El registro no genera asistencia y no condiciona tus derechos académicos.</p>
+      <label class="consent"><input id="consent" type="checkbox"><span>Soy mayor de edad, participo voluntariamente y acepto explícitamente el registro facial.</span></label>
+      <p id="policy"></p>
+      <button id="open" type="button" disabled>Activar cámara frontal</button>
+      <section id="verification-panel" aria-labelledby="verification-heading" hidden>
+        <h2 id="verification-heading">Verificación facial 1:1</h2>
+        <p id="verification-state"></p>
+        <p>La captura se compara con la plantilla de tu propia cuenta y se descarta tras procesarla.</p>
+        <button id="verify-open" type="button" disabled>Iniciar verificación facial</button>
+      </section>
+      <div id="preview" hidden>
+        <div class="frame"><video autoplay muted playsinline aria-label="Vista previa de cámara"></video></div>
+        <p>Posiciona tu rostro dentro del óvalo. Busca una iluminación uniforme y mantén el dispositivo quieto.</p>
+        <button id="capture" type="button" disabled>Capturar y registrar</button>
+      </div>
+      <button id="cancel" type="button" class="outline" hidden>Cancelar captura</button>
+      <details>
+        <summary>Gestionar derechos biométricos</summary>
+        <p id="registration"></p>
+        <button id="remove" type="button" class="outline" disabled>Retirar consentimiento y eliminar plantilla</button>
+      </details>
+    </section>
+    <p id="feedback" role="status" aria-live="polite"></p>
+  </main>
+</body>
+</html>
