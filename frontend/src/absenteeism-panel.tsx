@@ -39,8 +39,17 @@ const recommendations = {
 const formatChange = new Intl.NumberFormat('es-EC', { signDisplay: 'exceptZero', maximumFractionDigits: 1 })
 const format = formatAttendancePercent
 
-function RiskBadge({ level }: { level: Risk }) {
-  return <span className={`badge risk-${level}`}>{riskLabels[level]}</span>
+function countNoun(count: number, singular: string, plural: string) {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
+const absenceCount = (count: number) => countNoun(count, 'ausencia', 'ausencias')
+const classCount = (count: number) => countNoun(count, 'clase', 'clases')
+const consecutiveCount = (count: number) => countNoun(count, 'ausencia consecutiva', 'ausencias consecutivas')
+const expectedCount = (count: number) => countNoun(count, 'asistencia esperada', 'asistencias esperadas')
+
+export function RiskBadge({ level }: { level: Risk }) {
+  return <span className={`badge risk-badge risk-${level}`}>{riskLabels[level]}</span>
 }
 
 function PeriodCard({ label, period }: { label: string; period: Period }) {
@@ -48,19 +57,26 @@ function PeriodCard({ label, period }: { label: string; period: Period }) {
     <strong>{label}</strong>
     <small>{formatReportingDate(period.start)} – {formatReportingDate(period.end)}</small>
     <b>{format(period.rate)}</b>
-    {period.expected > 0 && <meter min={0} max={100} value={period.rate ?? 0} aria-label={label}/>}
-    <small>{period.present} de {period.expected} asistencias esperadas</small>
+    {period.rate !== null && <div className="absence-trend-track" role="meter"
+      aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={period.rate}>
+      <span style={{ width: `${period.rate}%` }}/>
+    </div>}
+    <small>{period.present} de {expectedCount(period.expected)}</small>
   </div>
 }
 
-function Ranking({ title, rows }: { title: string; rows: Rank[] }) {
+function Ranking({ title, rows, minSessions }: { title: string; rows: Rank[]; minSessions: number }) {
   return <section className="panel">
     <h3>{title}</h3>
-    <p>Hasta cinco resultados, ordenados por porcentaje de ausencias.</p>
+    <p>Hasta cinco resultados, por porcentaje de ausencias. Se señalan los resultados con menos de {expectedCount(minSessions)}.</p>
     {rows.length === 0 ? <p>No hay ausencias en el alcance disponible.</p> :
       <ol className="absence-ranking">{rows.map(row => <li key={row.id}>
-        <div><strong>{row.name}</strong><small>{row.absent} de {row.expected} asistencias esperadas</small></div>
-        <b>{format(row.rate)}</b>
+        <div>
+          <strong>{row.name}</strong>
+          <small>{absenceCount(row.absent)} de {expectedCount(row.expected)}</small>
+          {row.expected < minSessions && <RiskBadge level="sin_datos"/>}
+        </div>
+        <div className="absence-ranking-rate"><b>{format(row.rate)}</b><small>de ausencias</small></div>
       </li>)}</ol>}
   </section>
 }
@@ -88,17 +104,17 @@ export function AbsenteeismPanel({ analysis, alerts, rows, role }: {
 
     <section className="panel">
       <div className="panel-head"><div><h3>Alertas preventivas</h3>
-        <p>{alerts.length} alertas activas de riesgo medio o alto</p></div><Bell size={19}/></div>
+        <p>{countNoun(alerts.length, 'alerta activa', 'alertas activas')} de riesgo medio o alto</p></div><Bell size={19}/></div>
       {!alerts.length && <p>{rows.some(row => row.level === 'bajo')
         ? 'Sin alertas activas en las matrículas evaluadas.'
         : 'Aún no hay suficientes sesiones para evaluar el riesgo.'}</p>}
       <ul className="absence-alerts">{alerts.map(row => {
         if (row.level !== 'alto' && row.level !== 'medio') return null
-        return <li key={row.id}>
+        return <li className={`risk-${row.level}`} key={row.id}>
           <RiskBadge level={row.level}/>
           <h4>{personal ? row.course : row.student}</h4>
           {!personal && <small>{row.course}</small>}
-          <p>{row.absent} ausencias de {row.total} clases · Racha activa de {row.consecutive}</p>
+          <p>{absenceCount(row.absent)} de {classCount(row.total)} · Racha activa de {consecutiveCount(row.consecutive)}</p>
           <p>{row.reasons.join(' · ')}</p>
           <p>{recommendations[role][row.level]}</p>
         </li>
@@ -106,8 +122,8 @@ export function AbsenteeismPanel({ analysis, alerts, rows, role }: {
     </section>
 
     <div className="absence-columns">
-      {!personal && <Ranking title="Estudiantes con mayor ausentismo" rows={analysis.top_students}/>}
-      <Ranking title={personal ? 'Tus materias con más ausencias' : 'Materias con mayor ausentismo'} rows={analysis.top_courses}/>
+      {!personal && <Ranking title="Estudiantes con mayor ausentismo" rows={analysis.top_students} minSessions={policy.min_sessions}/>}
+      <Ranking title={personal ? 'Tus materias con más ausencias' : 'Materias con mayor ausentismo'} rows={analysis.top_courses} minSessions={policy.min_sessions}/>
     </div>
 
     <section className="panel">
@@ -126,7 +142,7 @@ export function AbsenteeismPanel({ analysis, alerts, rows, role }: {
           <span><strong>{personal ? row.course : row.student}</strong>{!personal && <small>{row.course}</small>}</span>
           <RiskBadge level={row.level}/>
         </summary>
-        <p>{format(row.rate)} de asistencia · {row.absent} ausencias de {row.total} clases · Racha activa de {row.consecutive}</p>
+        <p>{row.rate === null ? 'Sin datos de asistencia' : `${format(row.rate)} de asistencia`} · {absenceCount(row.absent)} de {classCount(row.total)} · Racha activa de {consecutiveCount(row.consecutive)}</p>
         {row.recent.length > 0 && <p>Asistencia reciente, de la más antigua a la más nueva: {row.recent.map(value => value ? 'Presente' : 'Ausente').join(' · ')}</p>}
       </details>)}
     </section>
@@ -135,10 +151,10 @@ export function AbsenteeismPanel({ analysis, alerts, rows, role }: {
       <summary>Criterios de riesgo</summary>
       <p>El análisis usa reglas estadísticas explicables. Se consideran sesiones válidas finalizadas, desde la fecha y hora de matrícula. Los umbrales se aplican al porcentaje de asistencia acumulado y a la racha activa de ausencias.</p>
       <ul>
-        <li>Datos insuficientes: menos de {policy.min_sessions} clases válidas.</li>
-        <li>Alto: asistencia inferior al {policy.high_below}% o {policy.high_streak} ausencias consecutivas.</li>
-        <li>Medio: asistencia inferior al {policy.medium_below}% o {policy.medium_streak} ausencias consecutivas, una vez descartado el riesgo alto.</li>
-        <li>Bajo: asistencia de al menos {policy.medium_below}% y menos de {policy.medium_streak} ausencias consecutivas.</li>
+        <li>Datos insuficientes: menos de {countNoun(policy.min_sessions, 'clase válida', 'clases válidas')}.</li>
+        <li>Alto: asistencia inferior al {policy.high_below}% o {consecutiveCount(policy.high_streak)}.</li>
+        <li>Medio: asistencia inferior al {policy.medium_below}% o {consecutiveCount(policy.medium_streak)}, una vez descartado el riesgo alto.</li>
+        <li>Bajo: asistencia de al menos {policy.medium_below}% y menos de {consecutiveCount(policy.medium_streak)}.</li>
       </ul>
     </details>
   </div>
