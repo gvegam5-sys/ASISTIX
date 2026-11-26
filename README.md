@@ -54,6 +54,27 @@ Abre [ASISTIX local](http://localhost:5173) e ingresa con `admin@asistix.demo`, 
 
 Ejecuta `python -m pytest` desde el backend con el entorno virtual configurado. Desde el frontend, usa `npm test` y `npm run build`.
 
+## Análisis de ausentismo
+
+El panel **Alertas** muestra rachas activas, compara la asistencia de los últimos siete días con los siete anteriores y presenta alertas preventivas, recomendaciones y rankings por porcentaje de ausencias. Usa reglas estadísticas explicables. El módulo funciona sin un modelo de aprendizaje automático entrenado.
+
+Evalúa sesiones válidas finalizadas desde la matrícula. Con los valores predeterminados, aplica la primera condición que corresponda por estudiante y materia.
+
+| Nivel | Criterio |
+|---|---|
+| Datos insuficientes | Menos de 3 sesiones válidas. |
+| Alto | Asistencia inferior al 70 % o al menos 3 ausencias consecutivas activas. |
+| Medio | Asistencia inferior al 80 % o al menos 2 ausencias consecutivas activas cuando el riesgo alto no aplica. |
+| Bajo | Asistencia de al menos el 80 % y menos de 2 ausencias consecutivas activas. |
+
+Configura `ABSENTEEISM_MIN_SESSIONS`, `ABSENTEEISM_HIGH_BELOW`, `ABSENTEEISM_MEDIUM_BELOW`, `ABSENTEEISM_HIGH_STREAK` y `ABSENTEEISM_MEDIUM_STREAK` en el entorno o en el archivo `.env` correspondiente. El mínimo y las rachas deben ser enteros positivos. Los porcentajes deben estar entre 0 y 100, con el umbral de asistencia de riesgo alto por debajo del medio. La racha de riesgo alto debe superar la de riesgo medio.
+
+- **Administrador.** Consulta el alcance institucional y coordina el seguimiento con el docente o tutoría.
+- **Docente.** Consulta sus materias y acuerda seguimiento o recuperación con el estudiante.
+- **Estudiante.** Consulta sus materias y recibe orientación para contactar al docente o tutoría.
+
+Consulta el [informe de validación](docs/VALIDACION_ANALISIS_AUSENTISMO.md).
+
 ## Laboratorio biométrico
 
 La [demostración universitaria final 12.6.5.6](experimentos/asistix-bio-12-6-5-6/DEMO_UNIVERSITARIA.md) consolida el QR, el consentimiento, el enrolamiento, la verificación 1:1, la revisión docente y la revocación. Usa retratos sintéticos, prueba de vida simulada y una SQLite ficticia aparte, con captura física desactivada.
