@@ -25,7 +25,7 @@ def test_dashboard_midnight_week_rollover_and_role_scope(client, monkeypatch, ac
     with SessionLocal() as db:
         students = list(db.scalars(select(User).where(User.role == 'student').order_by(User.id)))
         old = ClassSession(course_id=1, started_at=datetime(2034, 12, 25, 12), closed_at=datetime(2034, 12, 25, 13))
-        crossing = ClassSession(course_id=1, started_at=datetime(2035, 1, 1, 4, 30), closed_at=datetime(2035, 1, 1, 5, 5))
+        crossing = ClassSession(course_id=1, started_at=datetime(2035, 1, 1, 4, 30), closed_at=before_midnight)
         opened = ClassSession(course_id=2, started_at=midnight)
         db.add_all([old, crossing, opened])
         db.flush()
@@ -36,7 +36,6 @@ def test_dashboard_midnight_week_rollover_and_role_scope(client, monkeypatch, ac
         ])
         db.commit()
 
-    # Inspect the midnight boundary after the crossing session is closed in the fixture.
     monkeypatch.setattr(main, 'now', lambda: before_midnight)
     sunday_response = client.get('/dashboard', headers=headers)
     assert sunday_response.status_code == 200

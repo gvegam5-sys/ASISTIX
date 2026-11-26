@@ -16,10 +16,10 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from .db import Base, engine, get_db, settings
-from .models import User, Role, Student, Teacher, Course, Enrollment, ClassSession, QRToken, Attendance, Audit, Alert, now
+from .models import User, Role, Student, Teacher, Course, Enrollment, ClassSession, QRToken, Attendance, Audit, now
 from .security import passwords, sign, decode, current_user, roles, attendance_student
 from .attendance_errors import AttendanceError, AttendanceRoute
-from .analytics import student_stats, refresh_alerts, experimental_model
+from .analytics import attendance_overview, attendance_timelines, percentage, trailing_absences, refresh_alerts, experimental_model
 from .reporting_time import REPORTING_ZONE, reporting_date, reporting_day_bounds
 
 
@@ -352,32 +352,11 @@ def roster(session_id: int, u: User = Depends(roles('teacher', 'admin')), db: Se
 @app.get('/dashboard')
 def dashboard(u: User = Depends(current_user), db: Session = Depends(get_db)):
     cs = visible_courses(db, u)
-    items, alerts, course_stats, week = [], [], [], {}
-    today = reporting_date(now())
-    for i in range(6, -1, -1):
-        day = (today - timedelta(days=i)).isoformat()
-        week[day] = {'date': day, 'present': 0, 'expected': 0}
-    students = set()
-    for c in cs:
-        total, present = 0, 0
-        query = select(Enrollment).where(Enrollment.course_id == c.id)
-        if u.role == 'student': query = query.where(Enrollment.student_id == u.id)
-        for e in db.scalars(query):
-            students.add(e.student_id)
-            stats = student_stats(db, e)
-            total += stats['total']; present += stats['present']
-            student = db.get(User, e.student_id)
-            items.append({'student': student.name, 'course': c.name, **stats})
-            if stats['level']: alerts.append({'student': student.name, 'course': c.name, **stats})
-            attended = set(db.scalars(select(Attendance.session_id).where(Attendance.student_id == e.student_id)))
-            for s in db.scalars(select(ClassSession).where(ClassSession.course_id == c.id, ClassSession.started_at >= e.created_at, ClassSession.closed_at.is_not(None))):
-                key = reporting_date(s.started_at).isoformat()
-                if key in week:
-                    week[key]['expected'] += 1
-                    week[key]['present'] += int(s.id in attended)
-        course_stats.append({'name': c.name, 'present': present, 'expected': total, 'rate': round(present/total*100, 1) if total else None})
-    total = sum(c['expected'] for c in course_stats)
-    present = sum(c['present'] for c in course_stats)
+    as_of = now()
+    today = reporting_date(as_of)
+    overview = attendance_overview(db, cs, u.id if u.role == 'student' else None, as_of)
+    total = sum(c['expected'] for c in overview['courses'])
+    present = sum(c['present'] for c in overview['courses'])
     start_utc, end_utc = reporting_day_bounds(today)
     today_query = select(func.count()).select_from(Attendance).join(ClassSession).where(
         ClassSession.course_id.in_([c.id for c in cs]),
@@ -386,7 +365,9 @@ def dashboard(u: User = Depends(current_user), db: Session = Depends(get_db)):
     )
     if u.role == 'student':
         today_query = today_query.where(Attendance.student_id == u.id)
-    return {'demo': settings.demo_mode, 'students': len(students), 'today': db.scalar(today_query), 'rate': round(present/total*100, 1) if total else None, 'absent_rate': round((total-present)/total*100, 1) if total else None, 'week': list(week.values()), 'courses': course_stats, 'alerts': alerts, 'students_stats': items, 'analysis': experimental_model([]), 'timezone': REPORTING_ZONE.key, 'local_date': today.isoformat()}
+    return {**overview, 'demo': settings.demo_mode, 'today': db.scalar(today_query),
+            'rate': percentage(present, total), 'absent_rate': percentage(total - present, total),
+            'analysis': experimental_model([]), 'timezone': REPORTING_ZONE.key, 'local_date': today.isoformat()}
 
 
 @app.get('/reports/attendance.csv')
@@ -472,17 +453,12 @@ def evaluate_model(u: User = Depends(roles('admin')), db: Session = Depends(get_
     if settings.demo_mode:
         return {'status': 'insufficient_data', 'message': 'Evaluación deshabilitada con datos ficticios. Se mantienen las reglas estadísticas.'}
     rows = []
-    for e in db.scalars(select(Enrollment)):
-        sessions = db.scalars(select(ClassSession).where(ClassSession.course_id == e.course_id, ClassSession.closed_at.is_not(None), ClassSession.started_at >= e.created_at).order_by(ClassSession.started_at)).all()
-        present = set(db.scalars(select(Attendance.session_id).where(Attendance.student_id == e.student_id)))
-        flags = [int(s.id in present) for s in sessions]
+    for _, _, history in attendance_timelines(db):
+        flags = [present for _, present in history]
         for i in range(5, len(flags)):
             recent = flags[i-5:i]
-            consecutive = 0
-            for value in reversed(recent):
-                if value: break
-                consecutive += 1
-            rows.append({'date': sessions[i].started_at, 'features': [sum(recent)/5, consecutive], 'next_absent': 1-flags[i]})
+            rows.append({'date': history[i][0], 'features': [sum(recent) / 5, trailing_absences(recent)],
+                         'next_absent': 1 - flags[i]})
     rows.sort(key=lambda r: r['date'])
     result = experimental_model(rows)
     audit(db, u, 'evaluate_attendance_model')

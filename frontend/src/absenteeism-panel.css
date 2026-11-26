@@ -1,0 +1,43 @@
+﻿.absence-panel { display: grid; gap: 20px; }
+.absence-periods, .absence-columns, .absence-alerts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 14px;
+}
+.absence-periods > div, .absence-alerts > li {
+  padding: 16px;
+  border: 1px solid #e5ebf3;
+  border-radius: 8px;
+  background: #f8faff;
+}
+.absence-periods b { display: block; font-size: 23px; margin-top: 8px; }
+.absence-periods meter { display: block; width: 100%; height: 14px; accent-color: #2870ef; }
+.absence-panel small { display: block; color: #51637f; margin-top: 4px; }
+.absence-panel p, .absence-rules li { color: #51637f; font-size: 13px; }
+.absence-change { margin: 12px 0 0; }
+.absence-alerts, .absence-ranking { margin: 0; padding: 0; list-style: none; }
+.absence-alerts > li { background: #fffaf2; overflow-wrap: anywhere; }
+.absence-alerts h4 { margin: 8px 0 0; }
+.absence-alerts p { margin: 7px 0 0; }
+.absence-panel .badge { font-size: 11px; }
+.risk-alto { background: #ffe9e7; color: #a62d2b; }
+.risk-medio { background: #fff0d4; color: #85540a; }
+.risk-bajo { background: #e5f7ee; color: #196548; }
+.risk-sin_datos { background: #eef2f8; color: #4c6080; }
+.absence-ranking li, .absence-row summary, .absence-followup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.absence-ranking li, .absence-row { border-top: 1px solid #e5ebf3; padding: 12px 0; }
+.absence-ranking li > div, .absence-row summary > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.absence-ranking b { white-space: nowrap; }
+.absence-followup { flex-wrap: wrap; margin-bottom: 12px; }
+.absence-followup h3 { margin: 0; }
+.absence-row summary, .absence-rules summary { cursor: pointer; }
+.absence-row summary > span:first-child::before { content: '▸'; margin-right: 6px; }
+.absence-row[open] summary > span:first-child::before { content: '▾'; }
+.absence-row p, .absence-rules p { margin: 10px 0 0; }
+.absence-rules summary { font-weight: 650; }
+.absence-rules li { margin-top: 6px; }

@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,6 +9,19 @@ class Settings(BaseSettings):
     jwt_secret: str
     cors_origins: str = 'http://localhost:5173,http://localhost:8080'
     demo_mode: bool = False
+    absenteeism_min_sessions: int = Field(default=3, ge=1)
+    absenteeism_high_below: float = Field(default=70, ge=0, le=100)
+    absenteeism_medium_below: float = Field(default=80, ge=0, le=100)
+    absenteeism_high_streak: int = Field(default=3, ge=1)
+    absenteeism_medium_streak: int = Field(default=2, ge=1)
+
+    @model_validator(mode='after')
+    def validate_absenteeism(self):
+        if (self.absenteeism_high_below >= self.absenteeism_medium_below
+                or self.absenteeism_medium_streak >= self.absenteeism_high_streak):
+            raise ValueError('Los umbrales de riesgo deben estar ordenados')
+        return self
+
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')
 
 
